@@ -1,0 +1,1282 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Parabolic Spellcaster - Batalha de Funções</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600;700&family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+            user-select: none;
+        }
+        .font-mono {
+            font-family: 'Fira Code', monospace;
+        }
+        .glow-text-purple {
+            text-shadow: 0 0 12px rgba(168, 85, 247, 0.7);
+        }
+        .glow-text-cyan {
+            text-shadow: 0 0 12px rgba(6, 182, 212, 0.7);
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 4px;
+        }
+        canvas {
+            touch-action: none;
+        }
+    </style>
+</head>
+<body class="h-screen w-screen flex flex-col overflow-hidden bg-slate-950 text-slate-100">
+
+    <!-- TOP NAVBAR -->
+    <header class="h-16 border-b border-slate-800 bg-slate-900/80 backdrop-blur px-6 flex items-center justify-between z-10 shrink-0">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-purple-600 to-cyan-500 flex items-center justify-center shadow-lg shadow-purple-500/20">
+                <i class="fa-solid font-bold text-white text-lg fa-square-root-variable"></i>
+            </div>
+            <div>
+                <h1 class="font-bold text-lg leading-none bg-gradient-to-r from-purple-400 via-pink-400 to-cyan-400 bg-clip-text text-transparent">
+                    Parabolic Spellcaster
+                </h1>
+                <p class="text-xs text-slate-400 mt-1">Defina f(x) = ax² + bx + c para acertar o Boss Sombrio</p>
+            </div>
+        </div>
+
+        <!-- STATS & CONTROLS -->
+        <div class="flex items-center gap-4 md:gap-6">
+            <div class="flex items-center gap-2 bg-slate-800/80 px-3 py-1.5 rounded-lg border border-slate-700">
+                <i class="fa-solid fa-crown text-amber-400"></i>
+                <span class="text-xs text-slate-400">Fase:</span>
+                <span id="stage-display" class="font-bold text-amber-400 font-mono">1 / 5</span>
+            </div>
+            <div class="flex items-center gap-2 bg-slate-800/80 px-3 py-1.5 rounded-lg border border-slate-700">
+                <i class="fa-solid fa-crosshair text-cyan-400"></i>
+                <span class="text-xs text-slate-400">Pontos:</span>
+                <span id="score-display" class="font-bold text-cyan-400 font-mono">0</span>
+            </div>
+            <button id="toggle-audio-btn" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors border border-slate-700" title="Ativar/Desativar Som">
+                <i id="audio-icon" class="fa-solid fa-volume-high"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- MAIN GAME LAYOUT -->
+    <div class="flex-1 flex flex-col md:flex-row overflow-hidden relative">
+
+        <!-- LEFT PANEL: PARABOLA CONTROLS -->
+        <aside class="w-full md:w-96 bg-slate-900 border-r border-slate-800 flex flex-col overflow-y-auto shrink-0 z-10">
+            <!-- TARGET BOSS INFO -->
+            <div class="p-4 border-b border-slate-800 bg-purple-950/20">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-xs font-semibold uppercase tracking-wider text-purple-400 flex items-center gap-1.5">
+                        <i class="fa-solid fa-dragon"></i> Alvo do Vilão
+                    </span>
+                    <span id="boss-name" class="text-xs font-bold text-slate-300">Lord Glitch-TV</span>
+                </div>
+                
+                <div class="flex items-center gap-4 bg-slate-950/60 p-3 rounded-xl border border-purple-900/40">
+                    <div class="flex-1">
+                        <div class="text-xs text-slate-400 mb-1">Coordenadas do Alvo:</div>
+                        <div id="boss-coords" class="text-xl font-bold font-mono text-cyan-400 glow-text-cyan">
+                            (x: 8, y: 18)
+                        </div>
+                    </div>
+                    <div class="w-28">
+                        <div class="text-xs text-slate-400 mb-1 flex justify-between">
+                            <span>Vida</span>
+                            <span id="boss-hp-text" class="text-red-400 font-bold">100 HP</span>
+                        </div>
+                        <div class="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden border border-slate-700">
+                            <div id="boss-hp-bar" class="bg-gradient-to-r from-red-600 to-pink-500 h-full w-full transition-all duration-500"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- EQUATION MODE SELECTOR -->
+            <div class="p-4 border-b border-slate-800">
+                <div class="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Formato da Função Parabólica</div>
+                <div class="grid grid-cols-2 gap-2">
+                    <button id="mode-standard-btn" class="py-2 px-3 text-xs font-bold rounded-lg border border-purple-500 bg-purple-600/20 text-purple-300 transition-all">
+                        Padrão: <br><span class="font-mono text-xs">f(x) = ax² + bx + c</span>
+                    </button>
+                    <button id="mode-vertex-btn" class="py-2 px-3 text-xs font-bold rounded-lg border border-slate-700 bg-slate-800 text-slate-400 hover:border-slate-600 transition-all">
+                        Vértice: <br><span class="font-mono text-xs">f(x) = a(x - h)² + k</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- EQUATION DISPLAY & INPUT SLIDERS -->
+            <div class="p-4 flex-1 flex flex-col justify-between space-y-4">
+                <div>
+                    <!-- FORMULA BOX -->
+                    <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 text-center mb-4">
+                        <div class="text-xs text-slate-500 mb-1">Trajetória Configurada:</div>
+                        <div id="formula-math-display" class="font-mono text-base md:text-lg font-bold text-purple-300 glow-text-purple">
+                            f(x) = -0.50x² + 8.00x + 0.00
+                        </div>
+                    </div>
+
+                    <!-- STANDARD INPUTS -->
+                    <div id="standard-inputs" class="space-y-4">
+                        <!-- Param A -->
+                        <div>
+                            <div class="flex justify-between text-xs mb-1">
+                                <label class="font-semibold text-purple-300">Coeficiente 'a' (Abertura/Concavidade):</label>
+                                <span id="val-a-text" class="font-mono text-purple-400 font-bold">-0.50</span>
+                            </div>
+                            <input type="range" id="slider-a" min="-2.0" max="-0.01" step="0.01" value="-0.50" class="w-full accent-purple-500 cursor-pointer bg-slate-800 h-2 rounded-lg">
+                        </div>
+
+                        <!-- Param B -->
+                        <div>
+                            <div class="flex justify-between text-xs mb-1">
+                                <label class="font-semibold text-cyan-300">Coeficiente 'b' (Inclinação Inicial):</label>
+                                <span id="val-b-text" class="font-mono text-cyan-400 font-bold">8.00</span>
+                            </div>
+                            <input type="range" id="slider-b" min="-5.0" max="25.0" step="0.1" value="8.0" class="w-full accent-cyan-500 cursor-pointer bg-slate-800 h-2 rounded-lg">
+                        </div>
+
+                        <!-- Param C -->
+                        <div>
+                            <div class="flex justify-between text-xs mb-1">
+                                <label class="font-semibold text-emerald-300">Coeficiente 'c' (Altura do Herói):</label>
+                                <span id="val-c-text" class="font-mono text-emerald-400 font-bold">0.00</span>
+                            </div>
+                            <input type="range" id="slider-c" min="0.0" max="20.0" step="0.5" value="0.0" class="w-full accent-emerald-500 cursor-pointer bg-slate-800 h-2 rounded-lg">
+                        </div>
+                    </div>
+
+                    <!-- VERTEX INPUTS (Hidden by default) -->
+                    <div id="vertex-inputs" class="space-y-4 hidden">
+                        <!-- Param A (Vertex) -->
+                        <div>
+                            <div class="flex justify-between text-xs mb-1">
+                                <label class="font-semibold text-purple-300">Coeficiente 'a':</label>
+                                <span id="val-va-text" class="font-mono text-purple-400 font-bold">-0.50</span>
+                            </div>
+                            <input type="range" id="slider-va" min="-2.0" max="-0.01" step="0.01" value="-0.50" class="w-full accent-purple-500 cursor-pointer bg-slate-800 h-2 rounded-lg">
+                        </div>
+
+                        <!-- Param H (X Vertex) -->
+                        <div>
+                            <div class="flex justify-between text-xs mb-1">
+                                <label class="font-semibold text-amber-300">Vértice 'h' (X do topo):</label>
+                                <span id="val-vh-text" class="font-mono text-amber-400 font-bold">8.00</span>
+                            </div>
+                            <input type="range" id="slider-vh" min="1.0" max="30.0" step="0.5" value="8.0" class="w-full accent-amber-500 cursor-pointer bg-slate-800 h-2 rounded-lg">
+                        </div>
+
+                        <!-- Param K (Y Vertex) -->
+                        <div>
+                            <div class="flex justify-between text-xs mb-1">
+                                <label class="font-semibold text-pink-300">Vértice 'k' (Altura máxima):</label>
+                                <span id="val-vk-text" class="font-mono text-pink-400 font-bold">32.00</span>
+                            </div>
+                            <input type="range" id="slider-vk" min="1.0" max="60.0" step="0.5" value="32.0" class="w-full accent-pink-500 cursor-pointer bg-slate-800 h-2 rounded-lg">
+                        </div>
+                    </div>
+
+                    <!-- TEST POINT ESTIMATOR -->
+                    <div class="mt-4 p-3 bg-slate-950/80 rounded-xl border border-slate-800">
+                        <div class="flex items-center justify-between text-xs">
+                            <span class="text-slate-400">Altura no x_{boss} (<span id="calc-xboss-val">8</span>):</span>
+                            <span id="calc-yboss-val" class="font-mono font-bold text-cyan-300">f(8) = 32.00</span>
+                        </div>
+                        <div class="flex items-center justify-between text-xs mt-1">
+                            <span class="text-slate-400">Diferença para o Boss:</span>
+                            <span id="calc-delta-val" class="font-mono font-bold text-amber-400">Δy = 14.00</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ACTIONS -->
+                <div class="space-y-2 pt-2">
+                    <button id="fire-btn" class="w-full py-3 px-4 bg-gradient-to-r from-purple-600 via-pink-600 to-cyan-600 hover:from-purple-500 hover:to-cyan-500 text-white font-bold rounded-xl shadow-lg shadow-purple-600/30 flex items-center justify-center gap-2 text-sm transition-all transform active:scale-95">
+                        <i class="fa-solid fa-wand-magic-sparkles text-amber-300 text-base"></i>
+                        LANÇAR PODER MÁGICO!
+                    </button>
+                    
+                    <div class="flex gap-2">
+                        <button id="hint-btn" class="flex-1 py-2 px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-lg border border-slate-700 transition-colors flex items-center justify-center gap-1.5">
+                            <i class="fa-solid fa-lightbulb text-amber-400"></i> Dica Matemática
+                        </button>
+                        <button id="reset-cam-btn" class="py-2 px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-lg border border-slate-700 transition-colors flex items-center justify-center gap-1.5">
+                            <i class="fa-solid fa-compress"></i> Enquadrar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- CENTER / RIGHT: CANVAS WORKSPACE -->
+        <main class="flex-1 relative bg-slate-950 flex flex-col">
+            <!-- CANVAS CONTAINER -->
+            <div id="canvas-container" class="flex-1 w-full h-full relative cursor-crosshair overflow-hidden">
+                <canvas id="game-canvas" class="w-full h-full block"></canvas>
+
+                <!-- OVERLAY HUD IN CANVAS -->
+                <div class="absolute top-4 left-4 bg-slate-900/90 backdrop-blur px-3 py-2 rounded-xl border border-slate-800 text-xs text-slate-300 pointer-events-none flex items-center gap-3 shadow-lg">
+                    <div class="flex items-center gap-1.5">
+                        <span class="w-2.5 h-2.5 rounded-full bg-cyan-400 inline-block"></span>
+                        <span>Herói TV (0, c)</span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <span class="w-2.5 h-2.5 rounded-full bg-red-500 inline-block"></span>
+                        <span>Boss Sombrio</span>
+                    </div>
+                    <div class="flex items-center gap-1.5 text-slate-400">
+                        <i class="fa-solid fa-arrows-up-down-left-right text-[10px]"></i>
+                        <span>Arraste / Scroll</span>
+                    </div>
+                </div>
+
+                <!-- FLOATING DAMAGE POPUP -->
+                <div id="feedback-popup" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none transition-all duration-300 opacity-0 transform scale-50 z-20">
+                    <div id="feedback-card" class="bg-slate-900/95 border-2 border-purple-500 px-6 py-4 rounded-2xl shadow-2xl text-center backdrop-blur">
+                        <div id="feedback-title" class="text-xl font-extrabold text-amber-400">ACERTO DIRETO!</div>
+                        <div id="feedback-sub" class="text-xs text-slate-300 mt-1">Diferença: Δy = 0.12</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- LOG & COMBAT HISTORY -->
+            <div class="h-28 bg-slate-900 border-t border-slate-800 p-3 flex flex-col justify-between text-xs">
+                <div class="flex items-center justify-between text-slate-400 font-semibold mb-1">
+                    <span class="flex items-center gap-1.5">
+                        <i class="fa-solid fa-terminal text-purple-400"></i> Histórico de Disparos & Cálculos
+                    </span>
+                    <span id="log-status" class="text-[11px] font-mono text-cyan-400">Pronto para o disparo</span>
+                </div>
+                <div id="combat-log" class="flex-1 bg-slate-950 rounded-lg p-2 font-mono text-slate-300 overflow-y-auto space-y-1 border border-slate-800 text-[11px]">
+                    <div class="text-slate-500">> Batalha iniciada! Ajuste os sliders para interceptar o Boss no plano cartesiano.</div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- HINT MODAL -->
+    <div id="hint-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-slate-900 border border-purple-500/50 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                <h3 class="text-lg font-bold text-amber-400 flex items-center gap-2">
+                    <i class="fa-solid fa-graduation-cap"></i> Como calcular a curva perfeita?
+                </h3>
+                <button id="close-hint-btn" class="text-slate-400 hover:text-white p-1">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            
+            <div class="space-y-3 text-sm text-slate-300">
+                <p>Queremos que a função $f(x) = a \cdot x^2 + b \cdot x + c$ passe exatamente pela posição do Boss <strong id="hint-boss-coord" class="text-cyan-400">(8, 18)</strong>.</p>
+                
+                <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 font-mono text-xs space-y-1">
+                    <div class="text-purple-400">Passo 1: Fixe a abertura 'a' (ex: a = -0.5) e c = 0</div>
+                    <div class="text-slate-400">Passo 2: Substitua x e y na equação para achar 'b':</div>
+                    <div class="text-cyan-300">y = a(x)² + b(x)  =>  18 = (-0.5)*(8)² + b*(8)</div>
+                    <div class="text-cyan-300">18 = -32 + 8b  =>  50 = 8b  =>  <span class="text-amber-400 font-bold">b = 6.25</span></div>
+                </div>
+            </div>
+
+            <button id="apply-hint-btn" class="w-full py-2.5 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl text-xs transition-colors">
+                Aplicar Dica Automática aos Sliders
+            </button>
+        </div>
+    </div>
+
+    <!-- STAGE CLEAR MODAL -->
+    <div id="stage-modal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-slate-900 border-2 border-amber-500/80 rounded-2xl max-w-md w-full p-6 shadow-2xl text-center space-y-4">
+            <div class="w-16 h-16 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center text-3xl mx-auto border border-amber-500/50 animate-bounce">
+                <i class="fa-solid fa-trophy"></i>
+            </div>
+            <div>
+                <h2 id="stage-title" class="text-2xl font-black text-amber-400">BOSS DERROTADO!</h2>
+                <p id="stage-desc" class="text-xs text-slate-300 mt-1">Sua precisão matemática superou os poderes do vilão.</p>
+            </div>
+            
+            <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 text-left space-y-2 text-xs">
+                <div class="flex justify-between">
+                    <span class="text-slate-400">Pontuação Total:</span>
+                    <span id="stage-score-val" class="font-bold text-cyan-400 font-mono">+1000 pts</span>
+                </div>
+                <div class="flex justify-between border-t border-slate-800 pt-2 mt-2">
+                    <span class="text-slate-400">Próximo Alvo:</span>
+                    <span id="next-boss-target" class="font-bold text-amber-400 font-mono">Fase 2 (x: 14, y: 32)</span>
+                </div>
+            </div>
+
+            <button id="next-stage-btn" class="w-full py-3.5 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-black rounded-xl text-sm transition-all shadow-lg shadow-amber-500/30 active:scale-95 flex items-center justify-center gap-2">
+                <span>AVANÇAR PARA A PRÓXIMA FASE</span>
+                <i class="fa-solid fa-circle-arrow-right text-base"></i>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // SOUND ENGINE (Web Audio API)
+        class SoundEngine {
+            constructor() {
+                this.ctx = null;
+                this.enabled = true;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+            }
+
+            playCast() {
+                if (!this.enabled) return;
+                this.init();
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(150, now);
+                osc.frequency.exponentialRampToValueAtTime(800, now + 0.3);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.3);
+            }
+
+            playHit(critical = false) {
+                if (!this.enabled) return;
+                this.init();
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = critical ? 'triangle' : 'square';
+                osc.frequency.setValueAtTime(critical ? 523.25 : 220, now);
+                osc.frequency.exponentialRampToValueAtTime(critical ? 1046.50 : 110, now + 0.4);
+                gain.gain.setValueAtTime(0.4, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.4);
+            }
+
+            playVictory() {
+                if (!this.enabled) return;
+                this.init();
+                const now = this.ctx.currentTime;
+                const notes = [523.25, 659.25, 783.99, 1046.50];
+                notes.forEach((freq, idx) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(freq, now + idx * 0.12);
+                    gain.gain.setValueAtTime(0.3, now + idx * 0.12);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + idx * 0.12 + 0.3);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now + idx * 0.12);
+                    osc.stop(now + idx * 0.12 + 0.3);
+                });
+            }
+
+            playMiss() {
+                if (!this.enabled) return;
+                this.init();
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(180, now);
+                osc.frequency.linearRampToValueAtTime(60, now + 0.3);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.3);
+            }
+        }
+
+        const audio = new SoundEngine();
+
+        // GAME STAGES WITH DISTINCT COORDINATES & BOSS NAMES
+        const STAGES = [
+            { name: "Lord Glitch-TV", hp: 100, x: 8, y: 18, radius: 2.2, desc: "Aprenda os conceitos básicos acertando o Boss na coordenada (8, 18)!" },
+            { name: "Sombra Digital", hp: 130, x: 14, y: 32, radius: 2.0, desc: "O Boss subiu no mapa! Aumente o ápice da parábola para atingir (14, 32)." },
+            { name: "Mecha-Corrupção", hp: 160, x: 20, y: 15, radius: 1.8, desc: "O Boss recuou no eixo X para (20, 15). Calcule a inclinação necessária!" },
+            { name: "Imperador do Caos", hp: 200, x: 12, y: 42, radius: 1.5, desc: "Altura elevada nas sombras em (12, 42)! Exige precisão nos coeficientes." },
+            { name: "Overlord Sombrio Prime", hp: 250, x: 25, y: 28, radius: 1.2, desc: "O confronto final supremo na coordenada distante (25, 28)!" }
+        ];
+
+        // GAME STATE
+        const state = {
+            stageIndex: 0,
+            score: 0,
+            bossHp: 100,
+            bossMaxHp: 100,
+            mode: 'standard', // 'standard' ou 'vertex'
+            a: -0.50,
+            b: 8.00,
+            c: 0.00,
+            va: -0.50,
+            vh: 8.00,
+            vk: 32.00,
+            scale: 18,
+            offsetX: 70,
+            offsetY: 60,
+            isDragging: false,
+            dragStart: { x: 0, y: 0 },
+            isAnimating: false,
+            animProgress: 0,
+            projectileTrail: [],
+            particles: []
+        };
+
+        // DOM ELEMENTS
+        const canvasContainer = document.getElementById('canvas-container');
+        const canvas = document.getElementById('game-canvas');
+        const ctx = canvas.getContext('2d');
+
+        const stageDisplay = document.getElementById('stage-display');
+        const scoreDisplay = document.getElementById('score-display');
+        const bossNameDisplay = document.getElementById('boss-name');
+        const bossCoordsDisplay = document.getElementById('boss-coords');
+        const bossHpText = document.getElementById('boss-hp-text');
+        const bossHpBar = document.getElementById('boss-hp-bar');
+
+        const formulaMathDisplay = document.getElementById('formula-math-display');
+        const calcXbossVal = document.getElementById('calc-xboss-val');
+        const calcYbossVal = document.getElementById('calc-yboss-val');
+        const calcDeltaVal = document.getElementById('calc-delta-val');
+
+        const sliderA = document.getElementById('slider-a');
+        const sliderB = document.getElementById('slider-b');
+        const sliderC = document.getElementById('slider-c');
+        const valAText = document.getElementById('val-a-text');
+        const valBText = document.getElementById('val-b-text');
+        const valCText = document.getElementById('val-c-text');
+
+        const sliderVA = document.getElementById('slider-va');
+        const sliderVH = document.getElementById('slider-vh');
+        const sliderVK = document.getElementById('slider-vk');
+        const valVAText = document.getElementById('val-va-text');
+        const valVHText = document.getElementById('val-vh-text');
+        const valVKText = document.getElementById('val-vk-text');
+
+        const modeStandardBtn = document.getElementById('mode-standard-btn');
+        const modeVertexBtn = document.getElementById('mode-vertex-btn');
+        const standardInputs = document.getElementById('standard-inputs');
+        const vertexInputs = document.getElementById('vertex-inputs');
+
+        const combatLog = document.getElementById('combat-log');
+        const logStatus = document.getElementById('log-status');
+
+        const feedbackPopup = document.getElementById('feedback-popup');
+        const feedbackTitle = document.getElementById('feedback-title');
+        const feedbackSub = document.getElementById('feedback-sub');
+
+        // COORDINATE CONVERSIONS
+        function toScreen(mathX, mathY) {
+            return {
+                x: state.offsetX + mathX * state.scale,
+                y: (canvas.height - state.offsetY) - mathY * state.scale
+            };
+        }
+
+        function toMath(screenX, screenY) {
+            return {
+                x: (screenX - state.offsetX) / state.scale,
+                y: ((canvas.height - state.offsetY) - screenY) / state.scale
+            };
+        }
+
+        // EVALUATE QUADRATIC FUNCTION f(x)
+        function evaluateF(x) {
+            if (state.mode === 'standard') {
+                return state.a * Math.pow(x, 2) + state.b * x + state.c;
+            } else {
+                return state.va * Math.pow(x - state.vh, 2) + state.vk;
+            }
+        }
+
+        function logMessage(text, className = 'text-slate-300') {
+            const div = document.createElement('div');
+            div.className = className;
+            div.textContent = text;
+            combatLog.appendChild(div);
+            combatLog.scrollTop = combatLog.scrollHeight;
+        }
+
+        function updateFormulaDisplays() {
+            const currentStage = STAGES[state.stageIndex];
+            const xBoss = currentStage.x;
+            const yBoss = currentStage.y;
+
+            if (state.mode === 'standard') {
+                const signB = state.b >= 0 ? '+' : '-';
+                const absB = Math.abs(state.b).toFixed(2);
+                const signC = state.c >= 0 ? '+' : '-';
+                const absC = Math.abs(state.c).toFixed(2);
+
+                formulaMathDisplay.textContent = `f(x) = ${state.a.toFixed(2)}x² ${signB} ${absB}x ${signC} ${absC}`;
+            } else {
+                const signH = state.vh >= 0 ? '-' : '+';
+                const absH = Math.abs(state.vh).toFixed(2);
+                const signK = state.vk >= 0 ? '+' : '-';
+                const absK = Math.abs(state.vk).toFixed(2);
+
+                formulaMathDisplay.textContent = `f(x) = ${state.va.toFixed(2)}(x ${signH} ${absH})² ${signK} ${absK}`;
+            }
+
+            const yCalc = evaluateF(xBoss);
+            const deltaY = Math.abs(yCalc - yBoss);
+
+            calcXbossVal.textContent = xBoss;
+            calcYbossVal.textContent = `f(${xBoss}) = ${yCalc.toFixed(2)}`;
+            calcDeltaVal.textContent = `Δy = ${deltaY.toFixed(2)}`;
+
+            if (deltaY <= currentStage.radius) {
+                calcDeltaVal.className = "font-mono font-bold text-emerald-400 glow-text-cyan";
+            } else if (deltaY <= 4.0) {
+                calcDeltaVal.className = "font-mono font-bold text-amber-400";
+            } else {
+                calcDeltaVal.className = "font-mono font-bold text-red-400";
+            }
+        }
+
+        function drawHeroCharacter(ctx, x, y) {
+            ctx.save();
+            ctx.translate(x, y);
+            const s = 0.5;
+            ctx.scale(s, s);
+
+            // Flowing Red Cape
+            ctx.fillStyle = '#dc2626';
+            ctx.beginPath();
+            ctx.moveTo(-15, -10);
+            ctx.quadraticCurveTo(-50, 25, -35, 55);
+            ctx.quadraticCurveTo(0, 42, 25, 50);
+            ctx.quadraticCurveTo(15, 10, -5, -10);
+            ctx.fill();
+
+            // Legs & Shoes
+            ctx.strokeStyle = '#020617';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(-8, 25); ctx.lineTo(-12, 50);
+            ctx.moveTo(8, 25); ctx.lineTo(12, 50);
+            ctx.stroke();
+
+            ctx.fillStyle = '#ef4444';
+            ctx.beginPath();
+            ctx.ellipse(-14, 52, 8, 5, 0, 0, Math.PI * 2);
+            ctx.ellipse(14, 52, 8, 5, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Blue Body Chestplate
+            ctx.fillStyle = '#38bdf8';
+            ctx.strokeStyle = '#0284c7';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            if (ctx.roundRect) ctx.roundRect(-22, -15, 44, 40, [6]);
+            else ctx.rect(-22, -15, 44, 40);
+            ctx.fill();
+            ctx.stroke();
+
+            // Shield Emblem ('R')
+            ctx.fillStyle = '#1e3a8a';
+            ctx.beginPath();
+            ctx.moveTo(-13, -10);
+            ctx.lineTo(13, -10);
+            ctx.lineTo(13, 5);
+            ctx.lineTo(0, 18);
+            ctx.lineTo(-13, 5);
+            ctx.closePath();
+            ctx.fill();
+            ctx.strokeStyle = '#f59e0b';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            ctx.fillStyle = '#ef4444';
+            ctx.font = 'bold 16px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('R', 0, 3);
+
+            // Hero TV Head Frame
+            ctx.fillStyle = '#ef4444';
+            ctx.beginPath();
+            if (ctx.roundRect) ctx.roundRect(-32, -62, 64, 42, [8]);
+            else ctx.rect(-32, -62, 64, 42);
+            ctx.fill();
+            ctx.strokeStyle = '#991b1b';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+
+            // Cyan TV Screen
+            ctx.fillStyle = '#2dd4bf';
+            ctx.beginPath();
+            if (ctx.roundRect) ctx.roundRect(-26, -56, 52, 30, [4]);
+            else ctx.rect(-26, -56, 52, 30);
+            ctx.fill();
+
+            // Glasses Frame
+            ctx.strokeStyle = '#0f172a';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.arc(-11, -42, 10, 0, Math.PI * 2);
+            ctx.moveTo(11 + 10, -42);
+            ctx.arc(11, -42, 10, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Cartoon Eyes
+            ctx.fillStyle = '#0f172a';
+            ctx.beginPath();
+            ctx.arc(-11, -42, 3.5, 0, Math.PI * 2);
+            ctx.arc(11, -42, 3.5, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Smile
+            ctx.strokeStyle = '#0f172a';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(0, -35, 5, 0.1, Math.PI - 0.1);
+            ctx.stroke();
+
+            ctx.restore();
+        }
+
+        function drawBossCharacter(ctx, x, y, name) {
+            ctx.save();
+            ctx.translate(x, y);
+
+            // Dark Evil Pulsing Aura
+            const time = Date.now() / 150;
+            const auraRadius = 42 + Math.sin(time) * 6;
+            const auraGlow = ctx.createRadialGradient(0, 0, 8, 0, 0, auraRadius);
+            auraGlow.addColorStop(0, 'rgba(239, 68, 68, 0.7)');
+            auraGlow.addColorStop(0.5, 'rgba(147, 51, 234, 0.35)');
+            auraGlow.addColorStop(1, 'transparent');
+
+            ctx.fillStyle = auraGlow;
+            ctx.beginPath();
+            ctx.arc(0, 0, auraRadius, 0, Math.PI * 2);
+            ctx.fill();
+
+            const s = 0.55;
+            ctx.scale(s, s);
+
+            // Dark Tattered Cape
+            ctx.fillStyle = '#4c0519';
+            ctx.beginPath();
+            ctx.moveTo(-20, -10);
+            ctx.quadraticCurveTo(-65, 30, -50, 70);
+            ctx.lineTo(-20, 50);
+            ctx.lineTo(0, 65);
+            ctx.lineTo(20, 50);
+            ctx.quadraticCurveTo(65, 30, 50, 70);
+            ctx.lineTo(20, -10);
+            ctx.fill();
+
+            // Spiky Armor Shoulders
+            ctx.fillStyle = '#7f1d1d';
+            ctx.beginPath();
+            ctx.moveTo(-24, -10); ctx.lineTo(-42, -25); ctx.lineTo(-22, 5);
+            ctx.moveTo(24, -10); ctx.lineTo(42, -25); ctx.lineTo(22, 5);
+            ctx.fill();
+
+            // Dark Metallic Body
+            ctx.fillStyle = '#18181b';
+            ctx.strokeStyle = '#dc2626';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            if (ctx.roundRect) ctx.roundRect(-24, -15, 48, 44, [4]);
+            else ctx.rect(-24, -15, 48, 44);
+            ctx.fill();
+            ctx.stroke();
+
+            // Evil Emblem ('X')
+            ctx.fillStyle = '#450a0a';
+            ctx.beginPath();
+            ctx.moveTo(-14, -8); ctx.lineTo(14, -8); ctx.lineTo(14, 8); ctx.lineTo(0, 20); ctx.lineTo(-14, 8);
+            ctx.closePath();
+            ctx.fill();
+            ctx.strokeStyle = '#ef4444';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            ctx.fillStyle = '#f87171';
+            ctx.font = 'bold 18px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('X', 0, 4);
+
+            // Corrupted Dark TV Head Frame
+            ctx.fillStyle = '#09090b';
+            ctx.beginPath();
+            if (ctx.roundRect) ctx.roundRect(-36, -68, 72, 48, [6]);
+            else ctx.rect(-36, -68, 72, 48);
+            ctx.fill();
+            ctx.strokeStyle = '#b91c1c';
+            ctx.lineWidth = 4;
+            ctx.stroke();
+
+            // Dark Red Screen
+            ctx.fillStyle = '#450a0a';
+            ctx.beginPath();
+            if (ctx.roundRect) ctx.roundRect(-30, -62, 60, 36, [4]);
+            else ctx.rect(-30, -62, 60, 36);
+            ctx.fill();
+
+            // Static Scanlines
+            ctx.strokeStyle = 'rgba(239, 68, 68, 0.4)';
+            ctx.lineWidth = 1.5;
+            for (let i = -58; i < -28; i += 6) {
+                if (Math.random() > 0.25) {
+                    ctx.beginPath();
+                    ctx.moveTo(-28, i);
+                    ctx.lineTo(28, i);
+                    ctx.stroke();
+                }
+            }
+
+            // Glowing Evil Eyes
+            ctx.fillStyle = '#facc15';
+            ctx.beginPath();
+            ctx.moveTo(-22, -52); ctx.lineTo(-8, -44); ctx.lineTo(-20, -38); ctx.closePath();
+            ctx.moveTo(22, -52); ctx.lineTo(8, -44); ctx.lineTo(20, -38); ctx.closePath();
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        function drawScene() {
+            if (!ctx || !canvas) return;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const currentStage = STAGES[state.stageIndex];
+
+            // 1. CARTESIAN GRID
+            ctx.lineWidth = 1;
+            ctx.strokeStyle = '#1e293b';
+            ctx.fillStyle = '#64748b';
+            ctx.font = '10px Fira Code, monospace';
+
+            const startMath = toMath(0, canvas.height);
+            const endMath = toMath(canvas.width, 0);
+
+            const gridStep = state.scale > 15 ? 5 : 10;
+
+            // Grid Lines X
+            for (let x = Math.floor(startMath.x / gridStep) * gridStep; x <= endMath.x; x += gridStep) {
+                if (x < 0) continue;
+                const pos = toScreen(x, 0);
+                ctx.beginPath();
+                ctx.moveTo(pos.x, 0);
+                ctx.lineTo(pos.x, canvas.height);
+                ctx.stroke();
+
+                if (x >= 0) {
+                    ctx.fillText(`x=${x}`, pos.x + 3, canvas.height - state.offsetY + 14);
+                }
+            }
+
+            // Grid Lines Y
+            for (let y = Math.floor(startMath.y / gridStep) * gridStep; y <= endMath.y; y += gridStep) {
+                if (y < 0) continue;
+                const pos = toScreen(0, y);
+                ctx.beginPath();
+                ctx.moveTo(0, pos.y);
+                ctx.lineTo(canvas.width, pos.y);
+                ctx.stroke();
+
+                if (y > 0) {
+                    ctx.fillText(`y=${y}`, state.offsetX - 32, pos.y - 4);
+                }
+            }
+
+            // 2. MAIN AXES
+            const origin = toScreen(0, 0);
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#475569';
+            
+            // X-Axis
+            ctx.beginPath();
+            ctx.moveTo(0, origin.y);
+            ctx.lineTo(canvas.width, origin.y);
+            ctx.stroke();
+
+            // Y-Axis
+            ctx.beginPath();
+            ctx.moveTo(origin.x, 0);
+            ctx.lineTo(origin.x, canvas.height);
+            ctx.stroke();
+
+            // 3. PARABOLA ARC PREVIEW
+            ctx.lineWidth = 2.5;
+            ctx.setLineDash([6, 6]);
+            ctx.strokeStyle = 'rgba(168, 85, 247, 0.7)';
+
+            ctx.beginPath();
+            let firstPoint = true;
+            const maxDrawX = Math.max(currentStage.x + 10, 35);
+
+            for (let x = 0; x <= maxDrawX; x += 0.25) {
+                const y = evaluateF(x);
+                if (y < -20) continue;
+                const pt = toScreen(x, y);
+                if (firstPoint) {
+                    ctx.moveTo(pt.x, pt.y);
+                    firstPoint = false;
+                } else {
+                    ctx.lineTo(pt.x, pt.y);
+                }
+            }
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // 4. DRAW HERO AT (0, c)
+            const heroY = state.mode === 'standard' ? state.c : evaluateF(0);
+            const heroPos = toScreen(0, heroY);
+            drawHeroCharacter(ctx, heroPos.x, heroPos.y);
+
+            // 5. DRAW BOSS AT (x_boss, y_boss)
+            const bossPos = toScreen(currentStage.x, currentStage.y);
+            const bossPixelRadius = currentStage.radius * state.scale;
+
+            // Target Hit Circle
+            ctx.fillStyle = 'rgba(239, 68, 68, 0.12)';
+            ctx.strokeStyle = 'rgba(239, 68, 68, 0.6)';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.arc(bossPos.x, bossPos.y, bossPixelRadius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            // Boss Avatar
+            drawBossCharacter(ctx, bossPos.x, bossPos.y, currentStage.name);
+
+            // Boss Tag
+            ctx.fillStyle = '#f8fafc';
+            ctx.font = 'bold 11px Fira Code, monospace';
+            ctx.fillText(`${currentStage.name} (${currentStage.x}, ${currentStage.y})`, bossPos.x - 55, bossPos.y - bossPixelRadius - 15);
+
+            // 6. DRAW ANIMATING SPELL PROJECTILE
+            if (state.isAnimating) {
+                for (let i = 0; i < state.projectileTrail.length; i++) {
+                    const pt = state.projectileTrail[i];
+                    const alpha = i / state.projectileTrail.length;
+                    const scr = toScreen(pt.x, pt.y);
+                    
+                    ctx.fillStyle = `rgba(6, 182, 212, ${alpha * 0.8})`;
+                    ctx.beginPath();
+                    ctx.arc(scr.x, scr.y, 4 * alpha + 1, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                const projX = state.animProgress * currentStage.x;
+                const projY = evaluateF(projX);
+                const projScr = toScreen(projX, projY);
+
+                const projGlow = ctx.createRadialGradient(projScr.x, projScr.y, 2, projScr.x, projScr.y, 18);
+                projGlow.addColorStop(0, '#ffffff');
+                projGlow.addColorStop(0.4, '#06b6d4');
+                projGlow.addColorStop(1, 'transparent');
+
+                ctx.fillStyle = projGlow;
+                ctx.beginPath();
+                ctx.arc(projScr.x, projScr.y, 18, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // 7. PARTICLES
+            for (let i = state.particles.length - 1; i >= 0; i--) {
+                const p = state.particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.life -= 0.02;
+                if (p.life <= 0) {
+                    state.particles.splice(i, 1);
+                    continue;
+                }
+                ctx.fillStyle = p.color;
+                ctx.globalAlpha = p.life;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1.0;
+            }
+
+            if (state.isAnimating || state.particles.length > 0) {
+                requestAnimationFrame(drawScene);
+            }
+        }
+
+        function createExplosion(x, y, color) {
+            for (let i = 0; i < 30; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = Math.random() * 4 + 1;
+                state.particles.push({
+                    x: x,
+                    y: y,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    life: 1.0,
+                    size: Math.random() * 4 + 2,
+                    color: color
+                });
+            }
+        }
+
+        function fireSpell() {
+            if (state.isAnimating) return;
+
+            // Se o chefe já estiver sem HP, mostra a transição de fase
+            if (state.bossHp <= 0) {
+                showStageClearModal();
+                return;
+            }
+
+            audio.playCast();
+            state.isAnimating = true;
+            state.animProgress = 0;
+            state.projectileTrail = [];
+            logStatus.textContent = "Magia em movimento...";
+
+            const currentStage = STAGES[state.stageIndex];
+            const startTime = performance.now();
+            const duration = 1000; // 1s animation
+
+            function animateProjectile(now) {
+                const elapsed = now - startTime;
+                state.animProgress = Math.min(1.0, elapsed / duration);
+
+                const currentX = state.animProgress * currentStage.x;
+                const currentY = evaluateF(currentX);
+                state.projectileTrail.push({ x: currentX, y: currentY });
+
+                if (state.projectileTrail.length > 15) {
+                    state.projectileTrail.shift();
+                }
+
+                drawScene();
+
+                if (state.animProgress < 1.0) {
+                    requestAnimationFrame(animateProjectile);
+                } else {
+                    // Spell reached target X position!
+                    state.isAnimating = false;
+                    evaluateImpact();
+                }
+            }
+
+            requestAnimationFrame(animateProjectile);
+        }
+
+        function evaluateImpact() {
+            const currentStage = STAGES[state.stageIndex];
+            const yImpact = evaluateF(currentStage.x);
+            const error = Math.abs(yImpact - currentStage.y);
+
+            const bossScr = toScreen(currentStage.x, currentStage.y);
+
+            let damage = 0;
+            let title = "";
+            let sub = "";
+            let colorClass = "";
+
+            if (error <= currentStage.radius) {
+                damage = Math.floor(Math.random() * 20) + 50; // 50 - 70 HP
+                title = "ACERTO CRÍTICO DIRETO!";
+                sub = `Incrível! Δy = ${error.toFixed(2)} (Dentro da tolerância)`;
+                colorClass = "border-emerald-500 shadow-emerald-500/30 text-emerald-400";
+                createExplosion(bossScr.x, bossScr.y, '#10b981');
+                audio.playHit(true);
+            } else if (error <= 4.0) {
+                damage = Math.floor(Math.random() * 15) + 25; // 25 - 40 HP
+                title = "ACERTO PARCIAL!";
+                sub = `Quase lá! Δy = ${error.toFixed(2)}`;
+                colorClass = "border-amber-500 shadow-amber-500/30 text-amber-400";
+                createExplosion(bossScr.x, bossScr.y, '#f59e0b');
+                audio.playHit(false);
+            } else {
+                damage = 0;
+                title = "ERROU O ALVO!";
+                sub = `A parábola passou longe! Δy = ${error.toFixed(2)}`;
+                colorClass = "border-red-500 shadow-red-500/30 text-red-400";
+                createExplosion(bossScr.x, bossScr.y, '#ef4444');
+                audio.playMiss();
+            }
+
+            // Apply HP
+            state.bossHp = Math.max(0, state.bossHp - damage);
+            const hpPercent = (state.bossHp / state.bossMaxHp) * 100;
+            bossHpBar.style.width = `${hpPercent}%`;
+            bossHpText.textContent = `${state.bossHp} HP`;
+
+            if (damage > 0) {
+                state.score += damage * 10;
+                scoreDisplay.textContent = state.score;
+                logMessage(`> [ACERTO] Feixe atingiu y=${yImpact.toFixed(2)}. Causou ${damage} de dano ao Boss!`, 'text-emerald-400 font-bold');
+            } else {
+                logMessage(`> [ERRO] O feixe passou em y=${yImpact.toFixed(2)} (Alvo em y=${currentStage.y}).`, 'text-red-400');
+            }
+
+            // Show Popup feedback
+            const feedbackCard = document.getElementById('feedback-card');
+            feedbackCard.className = `bg-slate-900/95 border-2 px-6 py-4 rounded-2xl shadow-2xl text-center backdrop-blur ${colorClass}`;
+            feedbackTitle.textContent = title;
+            feedbackSub.textContent = sub;
+            feedbackPopup.classList.remove('opacity-0', 'scale-50');
+            feedbackPopup.classList.add('opacity-100', 'scale-100');
+
+            setTimeout(() => {
+                feedbackPopup.classList.remove('opacity-100', 'scale-100');
+                feedbackPopup.classList.add('opacity-0', 'scale-50');
+                logStatus.textContent = state.bossHp <= 0 ? "Boss derrotado!" : "Aguardando seu comando...";
+            }, 1800);
+
+            // Check Stage Clear when Boss HP reaches 0
+            if (state.bossHp <= 0) {
+                // Victory effects
+                audio.playVictory();
+                createExplosion(bossScr.x, bossScr.y, '#f59e0b');
+                createExplosion(bossScr.x, bossScr.y, '#a855f7');
+                createExplosion(bossScr.x, bossScr.y, '#06b6d4');
+
+                logMessage(`>>> VITÓRIA! O Boss ${currentStage.name} foi totalmente derrotado! <<<`, 'text-amber-300 font-bold');
+
+                setTimeout(() => {
+                    showStageClearModal();
+                }, 1200);
+            }
+
+            drawScene();
+        }
+
+        function loadStage(index) {
+            if (index >= STAGES.length) {
+                index = 0;
+            }
+
+            state.stageIndex = index;
+            const stage = STAGES[index];
+            state.bossHp = stage.hp;
+            state.bossMaxHp = stage.hp;
+            state.isAnimating = false;
+            state.projectileTrail = [];
+
+            stageDisplay.textContent = `${index + 1} / ${STAGES.length}`;
+            bossNameDisplay.textContent = stage.name;
+            bossCoordsDisplay.textContent = `(x: ${stage.x}, y: ${stage.y})`;
+            bossHpText.textContent = `${stage.hp} HP`;
+            bossHpBar.style.width = '100%';
+
+            logStatus.textContent = "Nova fase iniciada";
+            logMessage(`--- INICIANDO FASE ${index + 1}: ${stage.name} ---`, 'text-amber-400 font-bold');
+            logMessage(`> Desafio: ${stage.desc}`);
+
+            // Automatically frame camera to display origin (0,0) and boss target (x, y)
+            frameCameraToStage(stage);
+
+            updateFormulaDisplays();
+            drawScene();
+        }
+
+        function showStageClearModal() {
+            const isFinalStage = state.stageIndex === STAGES.length - 1;
+            const nextIndex = isFinalStage ? 0 : state.stageIndex + 1;
+            const nextStage = STAGES[nextIndex];
+
+            document.getElementById('stage-title').textContent = isFinalStage ? "JOGO CONCLUÍDO COM SUCESSO!" : "BOSS DERROTADO!";
+            document.getElementById('stage-desc').textContent = isFinalStage 
+                ? "Você completou todas as 5 fases e dominou a geometria parabólica!" 
+                : `Sua parábola superou o vilão ${STAGES[state.stageIndex].name}!`;
+            document.getElementById('stage-score-val').textContent = `${state.score} pts`;
+            
+            document.getElementById('next-boss-target').textContent = isFinalStage
+                ? "Reiniciar da Fase 1"
+                : `Fase ${nextIndex + 1}: ${nextStage.name} (x: ${nextStage.x}, y: ${nextStage.y})`;
+
+            document.getElementById('stage-modal').classList.remove('hidden');
+        }
+
+        function resizeCanvas() {
+            if (!canvasContainer) return;
+            canvas.width = canvasContainer.clientWidth;
+            canvas.height = canvasContainer.clientHeight;
+            drawScene();
+        }
+
+        // EVENT LISTENERS FOR SLIDERS AND MODES
+        sliderA.addEventListener('input', (e) => {
+            state.a = parseFloat(e.target.value);
+            valAText.textContent = state.a.toFixed(2);
+            updateFormulaDisplays();
+            drawScene();
+        });
+
+        sliderB.addEventListener('input', (e) => {
+            state.b = parseFloat(e.target.value);
+            valBText.textContent = state.b.toFixed(2);
+            updateFormulaDisplays();
+            drawScene();
+        });
+
+        sliderC.addEventListener('input', (e) => {
+            state.c = parseFloat(e.target.value);
+            valCText.textContent = state.c.toFixed(2);
+            updateFormulaDisplays();
+            drawScene();
+        });
+
+        sliderVA.addEventListener('input', (e) => {
+            state.va = parseFloat(e.target.value);
+            valVAText.textContent = state.va.toFixed(2);
+            updateFormulaDisplays();
+            drawScene();
+        });
+
+        sliderVH.addEventListener('input', (e) => {
+            state.vh = parseFloat(e.target.value);
+            valVHText.textContent = state.vh.toFixed(2);
+            updateFormulaDisplays();
+            drawScene();
+        });
+
+        sliderVK.addEventListener('input', (e) => {
+            state.vk = parseFloat(e.target.value);
+            valVKText.textContent = state.vk.toFixed(2);
+            updateFormulaDisplays();
+            drawScene();
+        });
+
+        modeStandardBtn.addEventListener('click', () => {
+            state.mode = 'standard';
+            modeStandardBtn.className = "py-2 px-3 text-xs font-bold rounded-lg border border-purple-500 bg-purple-600/20 text-purple-300 transition-all";
+            modeVertexBtn.className = "py-2 px-3 text-xs font-bold rounded-lg border border-slate-700 bg-slate-800 text-slate-400 hover:border-slate-600 transition-all";
+            standardInputs.classList.remove('hidden');
+            vertexInputs.classList.add('hidden');
+            updateFormulaDisplays();
+            drawScene();
+        });
+
+        modeVertexBtn.addEventListener('click', () => {
+            state.mode = 'vertex';
+            modeVertexBtn.className = "py-2 px-3 text-xs font-bold rounded-lg border border-purple-500 bg-purple-600/20 text-purple-300 transition-all";
+            modeStandardBtn.className = "py-2 px-3 text-xs font-bold rounded-lg border border-slate-700 bg-slate-800 text-slate-400 hover:border-slate-600 transition-all";
+            vertexInputs.classList.remove('hidden');
+            standardInputs.classList.add('hidden');
+            updateFormulaDisplays();
+            drawScene();
+        });
+
+        document.getElementById('fire-btn').addEventListener('click', fireSpell);
+
+        document.getElementById('reset-cam-btn').addEventListener('click', () => {
+            frameCameraToStage(STAGES[state.stageIndex]);
+            drawScene();
+        });
+
+        document.getElementById('toggle-audio-btn').addEventListener('click', () => {
+            audio.enabled = !audio.enabled;
+            document.getElementById('audio-icon').className = audio.enabled ? "fa-solid fa-volume-high" : "fa-solid fa-volume-xmark text-red-400";
+        });
+
+        // HINT HANDLERS
+        const hintModal = document.getElementById('hint-modal');
+        document.getElementById('hint-btn').addEventListener('click', () => {
+            const stage = STAGES[state.stageIndex];
+            document.getElementById('hint-boss-coord').textContent = `(${stage.x}, ${stage.y})`;
+            hintModal.classList.remove('hidden');
+        });
+
+        document.getElementById('close-hint-btn').addEventListener('click', () => {
+            hintModal.classList.add('hidden');
+        });
+
+        document.getElementById('apply-hint-btn').addEventListener('click', () => {
+            const stage = STAGES[state.stageIndex];
+            const targetA = -0.50;
+            const targetC = 0.00;
+            const idealB = (stage.y - targetA * Math.pow(stage.x, 2) - targetC) / stage.x;
+
+            state.a = targetA;
+            state.c = targetC;
+            state.b = idealB;
+
+            sliderA.value = targetA;
+            sliderB.value = idealB;
+            sliderC.value = targetC;
+
+            valAText.textContent = targetA.toFixed(2);
+            valBText.textContent = idealB.toFixed(2);
+            valCText.textContent = targetC.toFixed(2);
+
+            updateFormulaDisplays();
+            drawScene();
+            hintModal.classList.add('hidden');
+            logMessage(`> Dica Aplicada: f(x) ajustada para a=${targetA}, b=${idealB.toFixed(2)}, c=${targetC}`, 'text-amber-300');
+        });
+
+        document.getElementById('next-stage-btn').addEventListener('click', () => {
+            document.getElementById('stage-modal').classList.add('hidden');
+            if (state.stageIndex < STAGES.length - 1) {
+                loadStage(state.stageIndex + 1);
+            } else {
+                loadStage(0);
+            }
+        });
+
+        // CANVAS DRAG AND ZOOM NATIVE LISTENERS
+        canvas.addEventListener('mousedown', (e) => {
+            state.isDragging = true;
+            state.dragStart = { x: e.clientX - state.offsetX, y: e.clientY - state.offsetY };
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (state.isDragging) {
+                state.offsetX = e.clientX - state.dragStart.x;
+                state.offsetY = e.clientY - state.dragStart.y;
+                drawScene();
+            }
+        });
+
+        window.addEventListener('mouseup', () => {
+            state.isDragging = false;
+        });
+
+        canvas.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
+            state.scale = Math.max(8, Math.min(60, state.scale * zoomFactor));
+            drawScene();
+        }, { passive: false });
+
+        window.addEventListener('resize', resizeCanvas);
+
+        window.onload = () => {
+            resizeCanvas();
+            loadStage(0);
+        };
+    </script>
+</body>
+</html>
